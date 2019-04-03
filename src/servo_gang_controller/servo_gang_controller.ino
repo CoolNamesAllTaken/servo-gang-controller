@@ -1,11 +1,13 @@
 #include <PinChangeInterrupt.h>
 
+#define DEBUG
+
 /* Shift Register Defines */
 #define SER_PIN 2
 #define SERCLK_PIN 3
 #define RCLK_PIN 4
 #define SR_NUM_BITS 8 // also number of servos
-#define SERVO_PERIOD_US 20000 // 50 Hz
+#define SERVO_PERIOD_US 10000 // 50 Hz
 #define SERVO_SHORT_US 1000
 #define SERVO_LONG_US 2000
 
@@ -41,12 +43,16 @@ bool pwmin1_ignore = false;
 bool pwmin2_ignore = false;
 
 bool led_on = false;
+bool mosfet_on = false;
 
+#ifdef DEBUG
 uint16_t print_every = 0;
-uint32_t last_servo_change_ms = 0;
+#endif
 
 void setup() {
-	// Serial.begin(115200);
+	#ifdef DEBUG
+	Serial.begin(115200);
+	#endif
 
 	// set pinmodes
 	pinMode(SER_PIN, OUTPUT);
@@ -66,50 +72,54 @@ void setup() {
 
 	// set up interrupts
 	attachPCINT(digitalPinToPCINT(PWMIN1_PIN), pwmin1_isr, CHANGE);
-	// attachPCINT(digitalPinToPCINT(PWMIN2_PIN), pwmin2_isr, CHANGE);
+	attachPCINT(digitalPinToPCINT(PWMIN2_PIN), pwmin2_isr, CHANGE);
 
 	start_us = micros();
-	servo_positions = 0b11111111;
+	servo_positions = 0xFF;
 }
 
 
 void loop() {
-	// print_every++;
-	// if(!print_every) {
-	// 	Serial.println(servo_positions, HEX);
-	// }
+	#ifdef DEBUG
+	print_every++;
+	if(print_every > 500) {
+		print_every = 0;
+		Serial.println(servo_positions, HEX);
+	}
+	#endif
+
 	if (pwmin1_high_us > PWMIN1_HI_THRESHOLD_US && pwmin1_last_high_us < PWMIN1_HI_THRESHOLD_US) {
 		if (servo_positions == 0) {
 			// reset servos
-			servo_positions = 0b11111111;
+			servo_positions = 0xFF;
 		} else {
 			// activate one more servo
-			// Serial.println("HA");
-			pwmin1_last_high_us = pwmin1_high_us; // avoid duplicate triggers
-			toggle_led();
 			servo_positions = servo_positions >> 1;
 		}
+		pwmin1_last_high_us = pwmin1_high_us; // avoid duplicate triggers
+		toggle_led();
 	}
 
-	// if (millis() - last_servo_change_ms > 5000) {
-	// 	servo_positions = ~servo_positions;
-	// 	last_servo_change_ms = millis();
-	// 	toggle_led();
-	// }
 	update_sr_buffer();
-	// enable interrupts and avoid triggering a false super long interval
+	update_power();
 }
 
 /**
 Switch power to MOSFET based on pwmin2.
 **/
-void switch_power() {
+void update_power() {
 	if (pwmin2_high_us > PWMIN2_HI_THRESHOLD_US) {
 		// turn on MOSFET
-		digitalWrite(MOSFET_PIN, HIGH);
+		if (!mosfet_on) {
+			mosfet_on = true;
+			digitalWrite(MOSFET_PIN, HIGH);
+		}
 	} else {
 		// turn off MOSFET
-		digitalWrite(MOSFET_PIN, LOW);
+		if (mosfet_on) {
+			mosfet_on = false;
+			digitalWrite(MOSFET_PIN, LOW);
+		}
 	}
 }
 
@@ -122,8 +132,6 @@ void update_sr_buffer() {
 		// end of counting period
 		start_us = micros(); // reset time counter
 		sr_buffer = 0xff; // servo signals all start HIGH
-		// last_us = curr_us;
-		// sr_write(); // update servo pins
 	} else if (curr_us > SERVO_SHORT_US && last_us < SERVO_SHORT_US) {
 		// set position signal for servos that are open
 		for (int i = 0; i < SR_NUM_BITS; i++) {
@@ -132,8 +140,6 @@ void update_sr_buffer() {
 				sr_buffer &= ~(1 << i);
 			}
 		}
-		// last_us = curr_us;
-		// sr_write(); // update servo pins	
 	} else if (curr_us > SERVO_LONG_US && last_us < SERVO_LONG_US) {
 		// set position signal for servos that are closed
 		for (int i = 0; i < SR_NUM_BITS; i++) {
@@ -142,8 +148,6 @@ void update_sr_buffer() {
 				sr_buffer &= ~(1 << i);
 			}
 		}
-		// last_us = curr_us;
-		// sr_write(); // update servo pins
 	}
 
 	last_us = curr_us;

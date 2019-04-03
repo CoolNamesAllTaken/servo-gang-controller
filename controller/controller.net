@@ -1,7 +1,7 @@
 (export (version D)
   (design
-    (source C:\git-checkouts\servo-gang-controller\controller\controller.sch)
-    (date "2/12/2019 1:07:53 AM")
+    (source "C:\\Users\\John McNelly\\Box Sync\\Projects\\servo-gang-controller\\controller\\controller.sch")
+    (date "2/20/2019 4:22:25 PM")
     (tool "Eeschema (5.0.0)")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -170,6 +170,7 @@
       (tstamp 5C60A109))
     (comp (ref R3)
       (value 1M)
+      (footprint Resistors_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal)
       (datasheet ~)
       (libsource (lib Device) (part R_US) (description "Resistor US symbol"))
       (sheetpath (names /) (tstamps /))
