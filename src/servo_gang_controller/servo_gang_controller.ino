@@ -172,7 +172,8 @@ void sr_write() {
 }
 
 void pwmin1_isr() {
-	if (digitalRead(PWMIN1_PIN)) {
+	uint8_t trigger = getPinChangeInterruptTrigger(digitalPinToPCINT(PWMIN1_PIN));
+	if (trigger == RISING) {
 		// rising edge
 		pwmin1_last_rise_us = micros();
 	} else {
@@ -183,7 +184,8 @@ void pwmin1_isr() {
 }
 
 void pwmin2_isr() {
-	if (digitalRead(PWMIN2_PIN)) {
+	uint8_t trigger = getPinChangeInterruptTrigger(digitalPinToPCINT(PWMIN2_PIN));
+	if (trigger == RISING) {
 		// rising edge
 		pwmin2_last_rise_us = micros();
 	} else {
